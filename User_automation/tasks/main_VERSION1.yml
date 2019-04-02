@@ -1,0 +1,99 @@
+---
+  - name: Create users
+    user:
+      name: "{{item.name}}"
+      state: present
+#      shell: /bin/aspshell
+    with_items:
+      - "{{usr}}"
+    when: "{{ansible_hostname == ''}}"
+
+
+  - name: Check if ssh keys already exist
+    stat:
+      path: "/home/{{item.name}}/.ssh/id_rsa"
+    with_items:
+      - "{{usr}}"
+    register: cmd
+
+  - name: Generate the ssh keys
+    shell:
+      su - "{{item.item.name}}" -c "ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa"
+    with_items:
+      - "{{cmd.results}}"
+    when: not item.stat.exists
+
+  - name: Copy ssh pub key
+    fetch:
+      src: "{{item.key}}"
+      dest: "{{item.local}}"
+      flat: yes
+    with_items:
+      - "{{usr}}"
+    tags: noha
+
+
+  - name: Change the shell
+    user:
+      name: "{{item.name}}"
+      shell: /bin/aspshell
+    with_items:
+      - "{{usr}}"
+
+  - name: Now, running task on sam-aspera-ent1
+    user:
+      name: "{{item.name}}"
+      state: present
+      shell: /bin/aspshell
+    with_items:
+      - "{{usr}}"
+    delegate_to: sam-aspera-ent1
+
+  - name: Check if ssh dir path already exist
+    stat:
+      path: "{{item.path}}"
+    with_items:
+      - "{{usr}}"
+    register: path
+
+  - name: Execute a command
+    shell:
+#      echo "set_user_data;{{item.item.name}},turner;absolute,{{item.item.path}}" > "/tmp/now-{{item.item.name}}"
+      echo "asconfigurator -x 'set_user_data;user_name,{{item.item.name}};absolute,{{item.item.path}}'"
+    with_items:
+      - "{{cmd.results}}"
+    when: 
+      - not item.stat.exists
+      - path.stat.exists
+    delegate_to: sam-aspera-ent1
+
+  - name: Verifies if ssh pub keys is already present
+    stat:
+      path: "{{item.local}}"
+    with_items:
+      - "{{usr}}"
+    register: pub
+    delegate_to: sam-aspera-ent1
+
+  - name: Copy ssh pub keys to sam-aspera-ent1
+    copy:
+      src: "{{item.local}}"
+      dest: "{{item.keydest}}"
+    with_items:
+      - "{{usr}}"
+    delegate_to: sam-aspera-ent1
+    tags: micka
+#      ansible_become: false
+
+
+  - name: Ensure ssh keys are present on Server sam-aspera-ent1
+    authorized_key:
+      user: "{{item.name}}"
+      state: present
+      path: "{{item.loc}}"
+      key: "{{ lookup('file', '{{item.keydest}}') }}"
+    with_items:
+      - "{{usr}}"
+    delegate_to: sam-aspera-ent1
+
+...

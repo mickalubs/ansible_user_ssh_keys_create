@@ -1,0 +1,8 @@
+---
+  - name: Init
+    hosts: ALL-servers
+    become: true
+
+    roles:
+    - vantage_user_automation
+...

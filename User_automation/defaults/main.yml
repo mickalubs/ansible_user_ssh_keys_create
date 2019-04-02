@@ -1,0 +1,4 @@
+---
+usr:
+  - {name: user_ansible2, path: '/mnt/gpfs/dfd/Test_DIR2', key: '/home/user_ansible2/.ssh/id_rsa.pub'}
+
